@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <title>上傳壓縮筆記</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #fafafa;
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      max-width: 600px;
+      margin: 3rem auto;
+      padding: 1rem;
+      background: #fff;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      border-radius: 8px;
+    }
+    .alert {
+      padding: 10px;
+      margin-bottom: 1rem;
+      border-radius: 5px;
+      color: #fff;
+    }
+    .alert.success {
+      background-color: #4caf50;
+    }
+    .alert.error {
+      background-color: #f44336;
+    }
+    .upload-box {
+      border: 2px dashed #ccc;
+      border-radius: 4px;
+      padding: 1rem;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.3s;
+      margin-bottom: 1rem;
+      position: relative;
+    }
+    .upload-box:hover {
+      border-color: #1976d2;
+    }
+    .upload-box input[type="file"] {
+      display: none;
+    }
+    .help-container {
+      position: relative;
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+    .help-center {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      color: #888;
+    }
+    .help-link {
+      color: #2196F3;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .form-field {
+      margin-bottom: 1rem;
+      width: 100%;
+    }
+    input[type="text"], textarea {
+      width: 100%;
+      padding: 8px;
+      box-sizing: border-box;
+      font-size: 16px;
+    }
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+      background-color: #1976d2;
+      border: none;
+      color: #fff;
+      border-radius: 4px;
+    }
+    button:hover {
+      background-color: #115293;
+    }
+    img.preview {
+      width: 100%;
+      max-height: 300px;
+      object-fit: contain;
+      display: none;
+      margin-top: 0.5rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div id="alert-container"></div>
+    <h1 style="text-align: center;">上傳壓縮筆記</h1>
+    <div class="help-container">
+      <div class="help-center">*目前僅限定上傳 HTML, CSS, JS 網站*</div>
+      <div class="help-link" id="help-link">
+        &#x2753; 上傳教學
+      </div>
+    </div>
+    <form id="upload-form" novalidate>
+      <div class="form-field">
+        <label for="title">筆記標題</label><br>
+        <input type="text" id="title" name="title" />
+      </div>
+      <div class="form-field">
+        <label for="desc">筆記描述（限定100字）</label><br>
+        <textarea id="desc" name="desc" rows="5"></textarea>
+      </div>
+      <div class="form-field">
+        <label class="upload-box" id="file-upload-label">
+          <span id="file-upload-text">點擊此區域上傳檔案 (.zip)</span>
+          <input type="file" id="file-input" accept=".zip" />
+        </label>
+      </div>
+      <div class="form-field">
+        <label class="upload-box" id="image-upload-label">
+          <span id="image-upload-text">點擊此區域上傳筆記縮圖 (可不選)</span>
+          <input type="file" id="image-input" accept="image/*" />
+          <img id="image-preview" class="preview" alt="預覽圖片" />
+        </label>
+      </div>
+      <div class="form-field">
+        <button type="button" id="upload-button">上傳</button>
+      </div>
+    </form>
+  </div>
+  <script>
+    // Variables to hold file state
+    let file = null;
+    let image = null;
+
+    const alertContainer = document.getElementById('alert-container');
+    const fileInput = document.getElementById('file-input');
+    const imageInput = document.getElementById('image-input');
+    const fileUploadText = document.getElementById('file-upload-text');
+    const imageUploadText = document.getElementById('image-upload-text');
+    const imagePreview = document.getElementById('image-preview');
+    const titleInput = document.getElementById('title');
+    const descInput = document.getElementById('desc');
+    const uploadButton = document.getElementById('upload-button');
+    const helpLink = document.getElementById('help-link');
+
+    // File input change handler
+    fileInput.addEventListener('change', function(e) {
+      if (e.target.files && e.target.files.length > 0) {
+        file = e.target.files[0];
+        fileUploadText.textContent = "已選擇檔案: " + file.name;
+      }
+    });
+
+    // Image input change handler
+    imageInput.addEventListener('change', function(e) {
+      if (e.target.files && e.target.files.length > 0) {
+        image = e.target.files[0];
+        const url = URL.createObjectURL(image);
+        imagePreview.src = url;
+        imagePreview.style.display = 'block';
+        imageUploadText.style.display = 'none';
+      }
+    });
+
+    // Limit description to 100 characters
+    descInput.addEventListener('input', function() {
+      if (descInput.value.length > 100) {
+        descInput.value = descInput.value.slice(0, 100);
+      }
+    });
+
+    // Help link: open the teaching page in a new window
+    helpLink.addEventListener('click', function() {
+      window.open('/api/upload/default-sites/upload-webpage-tut', '_blank');
+    });
+
+    // Upload button event handler
+    uploadButton.addEventListener('click', function() {
+      // Clear previous alerts
+      alertContainer.innerHTML = "";
+      
+      const title = titleInput.value.trim();
+      const desc = descInput.value.trim();
+      
+      if (!file) {
+        showAlert('請上傳檔案。', false);
+        return;
+      }
+      if (title.length === 0 || desc.length === 0) {
+        showAlert('請填完標題與描述。', false);
+        return;
+      }
+      
+      const formData = new FormData();
+      formData.append('files[]', file);
+      if (image) {
+        formData.append('files[]', image);
+      }
+      formData.append('title', title);
+      formData.append('desc', desc);
+      
+      fetch('/api/upload/webpage-note', {
+        method: 'POST',
+        body: formData,
+        credentials: 'include'
+      })
+      .then(response => 
+        response.json().then(result => ({ status: response.status, result }))
+      )
+      .then(data => {
+        const isSuccess = data.status === 200;
+        showAlert(data.result.message, isSuccess);
+        if (isSuccess) {
+          // Reset form values
+          file = null;
+          image = null;
+          titleInput.value = "";
+          descInput.value = "";
+          fileUploadText.textContent = "點擊此區域上傳檔案 (.zip)";
+          imageUploadText.style.display = 'block';
+          imagePreview.src = "";
+          imagePreview.style.display = 'none';
+          // Also clear file inputs
+          fileInput.value = "";
+          imageInput.value = "";
+        }
+      })
+      .catch(error => {
+        console.error('Error uploading file:', error);
+        showAlert('上傳時發生錯誤。', false);
+      });
+    });
+
+    // Function to display alert messages
+    function showAlert(message, isSuccess) {
+      const div = document.createElement('div');
+      div.className = 'alert ' + (isSuccess ? 'success' : 'error');
+      div.textContent = message;
+      alertContainer.appendChild(div);
+    }
+  </script>
+</body>
+</html>
