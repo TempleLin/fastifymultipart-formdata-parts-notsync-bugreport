@@ -1,3 +1,14 @@
+## Intro
+
+This is a bug report for Fastify/Multipart plugin.
+
+## Expected Behavior
+
+When using {attachFieldsToBody: true}, everything is received. But when using .parts(), only the zip file is received,
+while the image and all the text fields' values are missing.
+
+## How to
+
 Try switching between to using ```attachFieldsToBody``` to see the different results:
 
 1. Uncomment 
